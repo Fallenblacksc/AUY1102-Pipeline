@@ -8,11 +8,11 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 
-# 1. Ejecutar tests con la ruta directa
-RUN ./node_modules/.bin/jest --passWithNoTests
+# 1. Ejecutar tests 
+RUN PATH=$(npm bin):$PATH npm run test:unit
 
-# 2. Compilar el código con la ruta directa
-RUN ./node_modules/.bin/rimraf dist && ./node_modules/.bin/tsc
+# 2. Compilar el código (Aquí aplicamos el fix final del PATH)
+RUN PATH=$(npm bin):$PATH npm run build 
 
 # ---------------------------------------
 # Etapa 2: Imagen de Producción
