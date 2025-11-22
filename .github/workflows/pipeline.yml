@@ -1,0 +1,110 @@
+name: CI/CD Pipeline & Security Analysis
+
+on:
+  push:
+    branches: [ "develop" ]
+  pull_request:
+    branches: [ "master" ] # <--- CAMBIO: Ajustado a tu rama master
+
+env:
+  # Define el nombre de la imagen usando el secreto del usuario
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/auy1102-pipeline
+
+jobs:
+  # ------------------------------------------------------------------
+  # JOB 1: CALIDAD Y SEGURIDAD (GATEKEEPER)
+  # Si este job falla, el despliegue NO ocurre.
+  # ------------------------------------------------------------------
+  quality-security-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Checkout del Código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Obligatorio para el análisis de SonarCloud
+
+      # --- PARTE 1: PRUEBAS UNITARIAS EN DOCKER ---
+      - name: 2. Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 3. Build de Imagen de Test y Ejecución de Pruebas
+        # Construye el contenedor y ejecuta los tests dentro de él.
+        run: |
+          docker build -t test-image .
+          docker run --rm test-image npm test 
+          # Si 'npm test' falla, el pipeline se detiene aquí automáticamente.
+
+      # --- PARTE 2: ANÁLISIS DE CÓDIGO (SONAR & SNYK) ---
+      - name: 4. SonarCloud Code Analysis
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: 5. Snyk Security Scan (Dependencias y Código)
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high # Solo rompe el pipeline en vulnerabilidades Altas/Críticas
+
+      # --- PARTE 3: GITHUB ADVANCED SECURITY (SOLO PR) ---
+      - name: 6. Dependency Review (GitHub Advanced Security)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+
+      # --- PARTE 4: DOCKER SCOUT (SEGURIDAD DE IMAGEN) ---
+      - name: 7. Login Docker Hub (Para Scout)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 8. Build Imagen para Análisis (Load Local)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true # No hace push, solo la carga localmente para analizarla
+          tags: local/scout-check:latest
+
+      - name: 9. Docker Scout Analysis
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: local/scout-check:latest
+          only-severities: critical,high
+          exit-code: true # IMPORTANTE: Esto detiene el pipeline si hay CVEs críticos
+
+  # ------------------------------------------------------------------
+  # JOB 2: DESPLIEGUE (DELIVERY)
+  # Solo corre si 'quality-security-gates' terminó exitosamente.
+  # ------------------------------------------------------------------
+  build-and-publish:
+    needs: quality-security-gates
+    runs-on: ubuntu-latest
+    # Condición: Se ejecuta si es push a develop O si es un PR hacia master
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'pull_request' && github.base_ref == 'master')
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construir y Publicar Imagen Final
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
