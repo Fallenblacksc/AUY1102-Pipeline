@@ -33,7 +33,7 @@
     "ext": "ts, js"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "rm -rf dist && ./node_modules/.bin/tsc",
     "build:ci": "npm run build && npm run types",
     "start": "node dist/index.js",
     "test": "npm run test:unit",
