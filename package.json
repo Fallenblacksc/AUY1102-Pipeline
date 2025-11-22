@@ -32,9 +32,12 @@
     "exec": "node -r tsconfig-paths/register -r ts-node/register ./src/app/server/Index.ts",
     "ext": "ts, js"
   },
-  "scripts": {
+ "scripts": {
     "build": "rimraf dist && tsc",
     "build:ci": "npm run build && npm run types",
+    "start": "node dist/index.js",   
+    "test": "npm run test:unit",     
+    "test:unit": "jest --passWithNoTests",
     "format": "prettier 'src/**/*.[jt]s?(x)' --write",
     "lint": "eslint src --ext js,ts",
     "lint:ci": "npm run lint:fix && npm run format && npm run sort",
@@ -42,7 +45,6 @@
     "prepare": "is-ci || husky install",
     "prepublishOnly": "npm run build:ci",
     "sort": "sort-package-json package.json",
-    "test:unit": "jest --passWithNoTests",
     "test:coverage": "jest --coverage",
     "test:dev": "jest --verbose --colors --expand --maxWorkers=50% --detectOpenHandles --errorOnDeprecated --bail",
     "test:watch": "jest --watch --verbose --colors --expand --maxWorkers=25%",

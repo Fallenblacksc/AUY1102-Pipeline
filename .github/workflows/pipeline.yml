@@ -27,12 +27,15 @@ jobs:
       - name: 2. Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 3. Build de Imagen de Test y Ejecución de Pruebas
-        # Construye el contenedor y ejecuta los tests dentro de él.
-        run: |
-          docker build -t test-image .
-          docker run --rm test-image npm test 
-          # Si 'npm test' falla, el pipeline se detiene aquí automáticamente.
+      - name: 3. Build de Imagen (Incluye Tests)
+        # Al hacer build, Docker ejecutará 'RUN npm test' definido en el Dockerfile.
+        # Si los tests fallan, el build falla y el pipeline se detiene.
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: test-image:latest.
 
       # --- PARTE 2: ANÁLISIS DE CÓDIGO (SONAR & SNYK) ---
       - name: 4. SonarCloud Code Analysis
