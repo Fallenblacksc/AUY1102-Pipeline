@@ -37,7 +37,7 @@
     "build:ci": "npm run build && npm run types",
     "start": "node dist/index.js",
     "test": "npm run test:unit",
-    "test:unit": "jest --passWithNoTests",
+    "test:unit": "npm run build && jest --passWithNoTests",
     "format": "prettier 'src/**/*.[jt]s?(x)' --write",
     "lint": "eslint src --ext js,ts",
     "lint:ci": "npm run lint:fix && npm run format && npm run sort",
