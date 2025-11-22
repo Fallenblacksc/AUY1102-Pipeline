@@ -1,18 +1,18 @@
-# ---------------------------------------
-# Etapa 1: Dependencias y Compilación
-# ---------------------------------------
+
 FROM node:20-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm test
+
+
+RUN npm run test:unit
+
+
 RUN npm run build
 
-# ---------------------------------------
-# Etapa 2: Imagen de Producción
-# ---------------------------------------
+-
 FROM node:20-alpine AS production
 WORKDIR /app
 
