@@ -18,14 +18,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# 1. Instalar herramientas de compilación temporalmente
-RUN apk add --no-cache python3 make g++
-
-# 2. Instalar dependencias de producción
-RUN npm ci --omit=dev --ignore-scripts
-
-# 3. Eliminar herramientas de compilación para mantener la imagen ligera
-RUN apk del python3 make g++
+RUN apk add --no-cache python3 make g++ && \
+    npm install --omit=dev --ignore-scripts && \
+    apk del python3 make g++
 
 COPY --from=builder /app/dist ./dist
 
